@@ -34,7 +34,7 @@
 
 ### 1. 프로젝트 디렉토리로 이동
 ```powershell
-cd GeminiApp
+cd NicknameGenerator
 ```
 
 ### 2. 애플리케이션 실행
@@ -135,10 +135,10 @@ http://localhost:5000/api/nickname
 ## 🛠️ 프로젝트 구조
 
 ```
-GeminiApp/
-├── Program.cs           # 메인 애플리케이션
-├── GeminiApp.csproj     # 프로젝트 파일
-└── README.md            # 이 파일
+NicknameGenerator/
+├── Program.cs                  # 메인 애플리케이션
+├── NicknameGenerator.csproj    # 프로젝트 파일
+└── README.md                   # 이 파일
 ```
 
 ## 💡 활용 예시
