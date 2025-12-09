@@ -1,7 +1,13 @@
-﻿var builder = WebApplication.CreateBuilder(args);
+using Microsoft.AspNetCore.Mvc;
+
+var builder = WebApplication.CreateBuilder(args);
 
 // 개발 중 상세한 에러 확인을 위해 예외 페이지 활성화
 builder.Services.AddProblemDetails();
+
+// Swagger 설정 추가
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // 닉네임 생성 서비스 등록
 builder.Services.AddSingleton<NicknameGenerator>();
@@ -14,17 +20,34 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+// Swagger UI 활성화
+app.UseSwagger();
+app.UseSwaggerUI();
+
 // GET /api/nickname 엔드포인트 정의
-app.MapGet("/api/nickname", async (NicknameGenerator generator, ILogger<Program> logger) =>
+app.MapGet("/api/nickname", (
+    NicknameGenerator generator,
+    ILogger<Program> logger,
+    int? count,
+    string? style,
+    int? maxLength) =>
 {
     try
     {
-        logger.LogInformation("닉네임 생성 요청 시작");
+        int actualCount = count ?? 1;
+        // 최대 100개로 제한
+        if (actualCount > 100) actualCount = 100;
+        if (actualCount < 1) actualCount = 1;
+
+        logger.LogInformation("닉네임 생성 요청: Count={Count}, Style={Style}, MaxLength={MaxLength}", actualCount, style, maxLength);
         
-        var nickname = generator.Generate();
+        var nicknames = generator.GenerateBatch(actualCount, style, maxLength);
         
-        logger.LogInformation("닉네임 생성 성공: {Nickname}", nickname);
-        return Results.Ok(new { nickname });
+        return Results.Ok(new
+        {
+            count = nicknames.Count,
+            nicknames
+        });
     }
     catch (Exception ex)
     {
@@ -34,7 +57,8 @@ app.MapGet("/api/nickname", async (NicknameGenerator generator, ILogger<Program>
             statusCode: 500,
             title: "닉네임 생성 실패");
     }
-});
+})
+.WithName("GetNickname");
 
 app.Run();
 
@@ -123,10 +147,48 @@ public class NicknameGenerator
         "슈퍼", "울트라", "하이퍼", "메가", "기가", "테라",
         "미니", "작은", "큰", "거대한", "초소형", "초대형"
     };
-    
-    public string Generate()
+
+    public List<string> GenerateBatch(int count, string? style, int? maxLength)
     {
-        var style = _random.Next(8); // 8가지 스타일
+        var results = new List<string>();
+        for (int i = 0; i < count; i++)
+        {
+            string nickname;
+            int attempts = 0;
+            do
+            {
+                nickname = Generate(style);
+                attempts++;
+            } while (maxLength.HasValue && nickname.Length > maxLength.Value && attempts < 10);
+
+            results.Add(nickname);
+        }
+        return results;
+    }
+    
+    public string Generate(string? styleName = null)
+    {
+        int style;
+
+        if (string.IsNullOrEmpty(styleName))
+        {
+            style = _random.Next(8);
+        }
+        else
+        {
+            style = styleName.ToLower() switch
+            {
+                "basic" => 0,
+                "number" => 1,
+                "suffix" => 2,
+                "double" => 3,
+                "complex" => 4,
+                "funny" => 5,
+                "triple" => 6,
+                "crazy" => 7,
+                _ => _random.Next(8)
+            };
+        }
         
         return style switch
         {
@@ -213,4 +275,3 @@ public class NicknameGenerator
         return string.Join("", parts);
     }
 }
-
